@@ -5,7 +5,13 @@ trap 'exit 1' INT
 
 BUILD=0
 IMAGE_NAME="localhost/opencode-container_opencode-auth-workspace"
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+SCRIPT_SRC="${BASH_SOURCE[0]}"
+while [ -L "$SCRIPT_SRC" ]; do
+  SCRIPT_DIR=$( cd -P "$( dirname "$SCRIPT_SRC" )" >/dev/null 2>&1 && pwd )
+  SCRIPT_SRC=$( readlink "$SCRIPT_SRC" )
+  [[ "$SCRIPT_SRC" != /* ]] && SCRIPT_SRC="$SCRIPT_DIR/$SCRIPT_SRC"
+done
+SCRIPT_DIR=$( cd -P "$( dirname "$SCRIPT_SRC" )" >/dev/null 2>&1 && pwd )
 
 usage() {
   cat <<EOF
