@@ -53,10 +53,10 @@ generate_compose_override() {
 
   local override_file="$(mktemp -d)/compose.override.yml"
 
-  # Only generate override if .llmignore exists
+  # Fail if .llmignore doesn't exist
   if [[ ! -f "$llmignore" ]]; then
-    rm -f "$override_file"
-    return
+    echo "Error: .llmignore not found: $llmignore" >&2
+    return 1
   fi
 
   # Get minimal mount set
