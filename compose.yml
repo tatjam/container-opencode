@@ -1,18 +1,16 @@
 services:
-  # Service with auth and workspace mounts
-  claude-auth-workspace:
+  # Service with auth and workspace mounts for OpenCode
+  opencode-auth-workspace:
     build:
       context: ${CONTEXT}
-      dockerfile: ${CLAUDE_CONTAINER_DIR}/Dockerfile.claude
+      dockerfile: ${OPENCODE_CONTAINER_DIR}/Dockerfile
     stdin_open: true
     tty: true
     userns_mode: keep-id
-    #profiles:
-    # Check this
-    #- auth-workspace
+    # profiles:
+    #   - auth-workspace
     volumes:
-      - ${CLAUDE_CONFIG_DIR:-~}/.claude.json:/home/node/.claude.json
-      - ${CLAUDE_CONFIG_DIR:-~}/.claude:/home/node/.claude
-      - ${CLAUDE_CONFIG_DIR:-~}/.claudeconfig:/home/node/.config/anthropic/
+      - ${OPENCODE_CONFIG_DIR:-~}/.opencode:/home/node/.opencode
+      - ${OPENCODE_CONFIG_DIR:-~}/.config/opencode:/home/node/.config/opencode
       # - ${CONTEXT}:/workspace
     working_dir: /workspace
