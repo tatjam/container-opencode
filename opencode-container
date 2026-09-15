@@ -73,7 +73,8 @@ services:
   opencode-auth-workspace:
     volumes:
       - ${OPENCODE_CONFIG_DIR:-~}/.config/opencode:/home/node/.config/opencode
-      - ${OPENCODE_CONFIG_DIR:-~}/.opencode:/home/node/.local/share/opencode
+      - ${OPENCODE_CONFIG_DIR:-~}/.opencode/share:/home/node/.local/share/opencode
+      - ${OPENCODE_CONFIG_DIR:-~}/.opencode/state:/home/node/.local/state/opencode
 ${mounts_yaml}
 EOF
 
