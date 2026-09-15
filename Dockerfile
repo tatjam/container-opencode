@@ -1,4 +1,4 @@
-FROM node:20
+FROM docker.io/library/node:20
 
 ARG OPENCODE_VERSION=latest
 
@@ -20,7 +20,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   jq \
   python3 \
   python3-pip \
-  golang-go \
   build-essential \
   clangd \
   curl \
@@ -49,7 +48,7 @@ WORKDIR /workspace
 
 # Install global Node & Python language servers
 ENV NPM_CONFIG_PREFIX=/usr/local/share/npm-global
-ENV PATH=$PATH:/usr/local/share/npm-global/bin:/usr/local/go/bin:/home/node/go/bin:/home/node/.cargo/bin:/home/node/.elan/bin:/usr/local/julia/bin
+ENV PATH=$PATH:/usr/local/share/npm-global/bin:/usr/local/go/bin:/usr/local/go/bin:/home/node/.cargo/bin:/home/node/.elan/bin
 
 RUN npm install -g \
   typescript-language-server \
@@ -59,10 +58,12 @@ RUN npm install -g \
 
 RUN pip3 install --no-cache-dir pyright --break-system-packages || pip3 install --no-cache-dir pyright
 
-# Install Julia binaries & LanguageServer package globally
-RUN JULIA_VERSION=1.10.2 && \
-  curl -sSL "https://julialang-s3.julialang.org/bin/linux/x64/1.10/julia-${JULIA_VERSION}-linux-x86_64.tar.gz" | tar -xz -C /usr/local --strip-components=1 && \
-  julia -e 'using Pkg; Pkg.add("LanguageServer")'
+# Install Go
+RUN GO_VERSION=$(curl -s https://go.dev/VERSION?m=text | head -n 1) && \
+    curl -sSL "https://dl.google.com/go/${GO_VERSION}.linux-amd64.tar.gz" | tar -xz -C /usr/local
+
+# Install OpenCode CLI
+RUN npm install -g opencode-ai@${OPENCODE_VERSION}
 
 # Set up non-root user context
 USER node
@@ -76,8 +77,5 @@ RUN curl https://elan.lean-lang.org/elan-init.sh -sSf | sh -s -- -y --default-to
 
 # Install Go language server (gopls)
 RUN go install golang.org/x/tools/gopls@latest
-
-# Install OpenCode CLI
-RUN npm install -g opencode@${OPENCODE_VERSION}
 
 CMD ["opencode"]

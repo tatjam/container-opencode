@@ -4,14 +4,14 @@ set -euo pipefail
 trap 'exit 1' INT
 
 BUILD=0
-IMAGE_NAME="localhost/claude-container_claude-auth-workspace"
+IMAGE_NAME="localhost/opencode-container_opencode-auth-workspace"
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 usage() {
   cat <<EOF
 Usage: $(basename "$0") [OPTIONS] <directory>
 
-Launch a containerized Claude workspace in the given directory.
+Launch a containerized Open Code workspace in the given directory.
 
 Options:
   -b, --build    Force a rebuild of the container image
@@ -70,8 +70,8 @@ generate_compose_override() {
   # Always include config mounts
   cat > "$override_file" <<EOF
 services:
-  claude-auth-workspace:
-volumes:
+  opencode-auth-workspace:
+    volumes:
       - ${OPENCODE_CONFIG_DIR:-~}/.opencode:/home/node/.opencode
       - ${OPENCODE_CONFIG_DIR:-~}/.config/opencode:/home/node/.config/opencode
 ${mounts_yaml}
@@ -112,8 +112,6 @@ echo "RUN DIR: $RUN_DIR"
 WORKING_DIR=$( cd "$1" > /dev/null && pwd )
 cd "$WORKING_DIR" || exit 1
 
-touch "${CLAUDE_CONFIG_DIR:-$HOME}/.claude.json"
-
 # Generate compose override with selective mounts if .llmignore exists
 OVERRIDE_FILE=$(generate_compose_override "$WORKING_DIR")
 
@@ -121,9 +119,9 @@ OVERRIDE_FILE=$(generate_compose_override "$WORKING_DIR")
 COMPOSE_FILES=("-f" "$RUN_DIR/compose.yml" "-f" "$OVERRIDE_FILE")
 
 if [[ $BUILD -eq 1 ]]; then
-  CONTEXT="$WORKING_DIR" CLAUDE_CONTAINER_DIR="$RUN_DIR" CLAUDE_CONFIG_DIR="${CLAUDE_CONFIG_DIR:-$HOME}" podman compose "${COMPOSE_FILES[@]}" --in-pod false run --rm --build claude-auth-workspace
+  CONTEXT="$WORKING_DIR" OPENCODE_CONTAINER_DIR="$RUN_DIR" OPENCODE_CONFIG_DIR="${OPENCODE_CONFIG_DIR:-$HOME}" podman compose "${COMPOSE_FILES[@]}" --in-pod false run --rm --build opencode-auth-workspace
 else
-  CONTEXT="$WORKING_DIR" CLAUDE_CONTAINER_DIR="$RUN_DIR" CLAUDE_CONFIG_DIR="${CLAUDE_CONFIG_DIR:-$HOME}" podman compose "${COMPOSE_FILES[@]}" --in-pod false run --rm claude-auth-workspace
+  CONTEXT="$WORKING_DIR" OPENCODE_CONTAINER_DIR="$RUN_DIR" OPENCODE_CONFIG_DIR="${OPENCODE_CONFIG_DIR:-$HOME}" podman compose "${COMPOSE_FILES[@]}" --in-pod false run --rm opencode-auth-workspace
 fi
 
 rm $OVERRIDE_FILE
