@@ -10,7 +10,7 @@ services:
     # profiles:
     #   - auth-workspace
     volumes:
-      - ${OPENCODE_CONFIG_DIR:-~}/.opencode:/home/node/.opencode
       - ${OPENCODE_CONFIG_DIR:-~}/.config/opencode:/home/node/.config/opencode
+      - ${OPENCODE_CONFIG_DIR:-~}/.opencode:/home/node/.local/share/opencode
       # - ${CONTEXT}:/workspace
     working_dir: /workspace
