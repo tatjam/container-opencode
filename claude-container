@@ -18,15 +18,15 @@ Options:
   -h, --help     Show this help message and exit
 
 Files:
-  .claudeignore  Patterns of files/directories to exclude from the container
+  .llmignore  Patterns of files/directories to exclude from the container
                  (format similar to .gitignore)
 EOF
 }
 
-# Generate volume mounts from .claudeignore, computing minimal spanning set
+# Generate volume mounts from .llmignore, computing minimal spanning set
 generate_volume_mounts() {
   local work_dir=$1
-  local claudeignore="$work_dir/.claudeignore"
+  local llmignore="$work_dir/.llmignore"
 
   if ! command -v fdfind >/dev/null 2>&1; then
     echo "Error: fdfind is required" >&2
@@ -38,23 +38,23 @@ generate_volume_mounts() {
     return 1
   fi
 
-  if [[ ! -f "$claudeignore" ]]; then
-    echo "Error: .claudeignore not found: $claudeignore" >&2
+  if [[ ! -f "$llmignore" ]]; then
+    echo "Error: .llmignore not found: $llmignore" >&2
     return 1
   fi
 
-  WORK_DIR="$work_dir" CLAUDEIGNORE="$claudeignore" python3 "${SCRIPT_DIR}/fd_helper.py"
+  WORK_DIR="$work_dir" CLAUDEIGNORE="$llmignore" python3 "${SCRIPT_DIR}/fd_helper.py"
 }
 
 # Generate compose override file with selective volume mounts
 generate_compose_override() {
   local work_dir=$1
-  local claudeignore="$work_dir/.claudeignore"
+  local llmignore="$work_dir/.llmignore"
 
   local override_file="$(mktemp -d)/compose.override.yml"
 
-  # Only generate override if .claudeignore exists
-  if [[ ! -f "$claudeignore" ]]; then
+  # Only generate override if .llmignore exists
+  if [[ ! -f "$llmignore" ]]; then
     rm -f "$override_file"
     return
   fi
@@ -115,7 +115,7 @@ cd "$WORKING_DIR" || exit 1
 
 touch "${CLAUDE_CONFIG_DIR:-$HOME}/.claude.json"
 
-# Generate compose override with selective mounts if .claudeignore exists
+# Generate compose override with selective mounts if .llmignore exists
 OVERRIDE_FILE=$(generate_compose_override "$WORKING_DIR")
 
 # Compose files: base + optional override
