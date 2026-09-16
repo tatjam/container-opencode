@@ -65,6 +65,10 @@ RUN GO_VERSION=$(curl -s https://go.dev/VERSION?m=text | head -n 1) && \
 # Install OpenCode CLI
 RUN npm install -g opencode-ai@${OPENCODE_VERSION}
 
+# Allow passwordless sudo
+RUN echo "\(USERNAME ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/\)USERNAME \
+  && chmod 0440 /etc/sudoers.d/$USERNAME
+
 # Set up non-root user context
 USER node
 
