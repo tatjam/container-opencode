@@ -29,6 +29,8 @@ Files:
   .llmignore  Patterns of files/directories to exclude from the container
                  (format similar to .gitignore)
   .opencode_mounts.yaml  Optional compose override for extra volume mounts
+  .opencode_start.sh  Optional script run in the container instead of opencode
+                         (mounted read-only, always excluded from workspace)
 EOF
 }
 
@@ -52,7 +54,16 @@ generate_volume_mounts() {
     return 1
   fi
 
-  WORK_DIR="$work_dir" CLAUDEIGNORE="$llmignore" python3 "${SCRIPT_DIR}/fd_helper.py"
+  # .opencode_start.sh is never part of the workspace mounts; it is mounted
+  # separately and read-only.
+  local tmp_ignore="$(mktemp)"
+  cat "$llmignore" > "$tmp_ignore"
+  echo ".opencode_start.sh" >> "$tmp_ignore"
+
+  local status=0
+  WORK_DIR="$work_dir" CLAUDEIGNORE="$tmp_ignore" python3 "${SCRIPT_DIR}/fd_helper.py" || status=$?
+  rm -f "$tmp_ignore"
+  return $status
 }
 
 # Generate compose override file with selective volume mounts
@@ -77,6 +88,14 @@ generate_compose_override() {
     fi
   done <<< "$mounts"
 
+  # Mount .opencode_start.sh read-only and run it instead of opencode
+  local start_mount=""
+  local start_command=""
+  if [[ -f "$work_dir/.opencode_start.sh" ]]; then
+    start_mount="      - \${CONTEXT}/.opencode_start.sh:/workspace/.opencode_start.sh:ro"$'\n'
+    start_command="    command: bash /workspace/.opencode_start.sh"$'\n'
+  fi
+
   # Always include config mounts
   cat > "$override_file" <<EOF
 services:
@@ -85,7 +104,7 @@ services:
       - ${OPENCODE_CONFIG_DIR:-~}/.config/opencode:/home/node/.config/opencode
       - ${OPENCODE_CONFIG_DIR:-~}/.opencode/share:/home/node/.local/share/opencode
       - ${OPENCODE_CONFIG_DIR:-~}/.opencode/state:/home/node/.local/state/opencode
-${mounts_yaml}
+${mounts_yaml}${start_mount}${start_command}
 EOF
 
   echo "${override_file}"
