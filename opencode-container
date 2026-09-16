@@ -5,6 +5,7 @@ trap 'exit 1' INT
 
 BUILD=0
 RISKY=0
+IMAGE=""
 IMAGE_NAME="localhost/opencode-container_opencode-auth-workspace"
 SCRIPT_SRC="${BASH_SOURCE[0]}"
 while [ -L "$SCRIPT_SRC" ]; do
@@ -21,9 +22,10 @@ Usage: $(basename "$0") [OPTIONS] <directory>
 Launch a containerized Open Code workspace in the given directory.
 
 Options:
-  -b, --build    Force a rebuild of the container image
-  -h, --help     Show this help message and exit
-  --risky        Allow launching when .opencode_mounts.yaml is not ignored
+  -b, --build       Force a rebuild of the container image
+  -h, --help        Show this help message and exit
+  -i, --image NAME  Use the given container image instead of building one
+  --risky           Allow launching when .opencode_mounts.yaml is not ignored
 
 Files:
   .llmignore  Patterns of files/directories to exclude from the container
@@ -31,6 +33,17 @@ Files:
   .opencode_mounts.yaml  Optional compose override for extra volume mounts
   .opencode_start.sh  Optional script run in the container instead of opencode
                          (mounted read-only, always excluded from workspace)
+
+Checkpointing:
+  To save the current container state as an image, find the running container
+  and commit it:
+
+    podman ps
+    podman commit <container-name> my-checkpoint
+
+  Then resume it later with:
+
+    opencode-container --image my-checkpoint <directory>
 EOF
 }
 
@@ -117,6 +130,18 @@ is_exposed() {
   grep -qxF "." <<< "$mounts" || grep -qxF ".opencode_mounts.yaml" <<< "$mounts"
 }
 
+# Generate compose override to use a specific image instead of building
+generate_image_override() {
+  local image=$1
+  local override_file="$(mktemp -d)/compose.image.yml"
+  cat > "$override_file" <<EOF
+services:
+  opencode-auth-workspace:
+    image: ${image}
+EOF
+  echo "${override_file}"
+}
+
 # Parse arguments
 POSITIONAL_ARGS=()
 while [[ $# -gt 0 ]]; do
@@ -132,6 +157,14 @@ while [[ $# -gt 0 ]]; do
     --risky)
       RISKY=1
       shift
+      ;;
+    -i|--image)
+      if [[ $# -lt 2 ]]; then
+        echo "Error: --image requires an argument" >&2
+        exit 1
+      fi
+      IMAGE="$2"
+      shift 2
       ;;
     *)
       POSITIONAL_ARGS+=("$1")
@@ -178,10 +211,22 @@ if [[ -f "$MOUNTS_FILE" ]]; then
   COMPOSE_FILES+=("-f" "$MOUNTS_FILE")
 fi
 
+# Use a specific image instead of building
+IMAGE_OVERRIDE=""
+if [[ -n "$IMAGE" ]]; then
+  if [[ $BUILD -eq 1 ]]; then
+    echo "Error: --build and --image are mutually exclusive" >&2
+    exit 1
+  fi
+  IMAGE_OVERRIDE=$(generate_image_override "$IMAGE")
+  COMPOSE_FILES+=("-f" "$IMAGE_OVERRIDE")
+fi
+
 if [[ $BUILD -eq 1 ]]; then
   CONTEXT="$WORKING_DIR" OPENCODE_CONTAINER_DIR="$RUN_DIR" OPENCODE_CONFIG_DIR="${OPENCODE_CONFIG_DIR:-$HOME}" podman compose "${COMPOSE_FILES[@]}" --in-pod false run --rm --build opencode-auth-workspace
 else
   CONTEXT="$WORKING_DIR" OPENCODE_CONTAINER_DIR="$RUN_DIR" OPENCODE_CONFIG_DIR="${OPENCODE_CONFIG_DIR:-$HOME}" podman compose "${COMPOSE_FILES[@]}" --in-pod false run --rm opencode-auth-workspace
 fi
 
-rm $OVERRIDE_FILE
+rm -f "$OVERRIDE_FILE"
+[[ -n "$IMAGE_OVERRIDE" ]] && rm -f "$IMAGE_OVERRIDE"
