@@ -26,16 +26,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Ensure default node user has access to /usr/local/share
-RUN mkdir -p /usr/local/share/npm-global && \
-  chown -R node:node /usr/local/share
+RUN mkdir -p /usr/local/share/npm-global && chown -R node:node /usr/local/share/npm-global
 
 ARG USERNAME=node
-
-# Persist bash history
-RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhistory/.bash_history" \
-  && mkdir /commandhistory \
-  && touch /commandhistory/.bash_history \
-  && chown -R $USERNAME /commandhistory
 
 # Set `DEVCONTAINER` environment variable to help with orientation
 ENV DEVCONTAINER=true
@@ -48,7 +41,7 @@ WORKDIR /workspace
 
 # Install global Node & Python language servers
 ENV NPM_CONFIG_PREFIX=/usr/local/share/npm-global
-ENV PATH=$PATH:/usr/local/share/npm-global/bin:/usr/local/go/bin:/usr/local/go/bin:/home/node/.cargo/bin:/home/node/.elan/bin
+ENV PATH=$PATH:/usr/local/share/npm-global/bin:/usr/local/go/bin:/home/node/.cargo/bin:/home/node/.elan/bin:/home/node/go/bin
 
 RUN npm install -g \
   typescript-language-server \
@@ -66,7 +59,7 @@ RUN GO_VERSION=$(curl -s https://go.dev/VERSION?m=text | head -n 1) && \
 RUN npm install -g opencode-ai@${OPENCODE_VERSION}
 
 # Allow passwordless sudo
-RUN echo "\(USERNAME ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/\)USERNAME \
+RUN echo "$USERNAME ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/$USERNAME \
   && chmod 0440 /etc/sudoers.d/$USERNAME
 
 # Set up non-root user context
