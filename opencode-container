@@ -119,6 +119,8 @@ echo "RUN DIR: $RUN_DIR"
 WORKING_DIR=$( cd "$1" > /dev/null && pwd )
 cd "$WORKING_DIR" || exit 1
 
+mkdir -p .opencode
+
 # Generate compose override with selective mounts if .llmignore exists
 OVERRIDE_FILE=$(generate_compose_override "$WORKING_DIR")
 
