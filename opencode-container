@@ -25,14 +25,14 @@ Options:
   -b, --build       Force a rebuild of the container image
   -h, --help        Show this help message and exit
   -i, --image NAME  Use the given container image instead of building one
-  --risky           Allow launching when .opencode_mounts.yaml is not ignored
+  --risky           Allow launching when .agents_mounts.yaml is not ignored
 
 Files:
   .agentsignore  Patterns of files/directories to exclude from the container
                  (format similar to .gitignore)
-  .opencode_mounts.yaml  Optional compose override for extra volume mounts
-  .opencode_start.sh  Optional script run in the container instead of opencode
-                         (mounted read-only, always excluded from workspace)
+  .agents_mounts.yaml  Optional compose override for extra volume mounts
+  .agents_start.sh  Optional script run in the container instead of opencode
+                    (mounted read-only, always excluded from workspace)
 
 Checkpointing:
   To save the current container state as an image, find the running container
@@ -67,11 +67,11 @@ generate_volume_mounts() {
     return 1
   fi
 
-  # .opencode_start.sh is never part of the workspace mounts; it is mounted
+  # .agents_start.sh is never part of the workspace mounts; it is mounted
   # separately and read-only.
   local tmp_ignore="$(mktemp)"
   cat "$agentsignore" > "$tmp_ignore"
-  echo ".opencode_start.sh" >> "$tmp_ignore"
+  echo ".agents_start.sh" >> "$tmp_ignore"
 
   local status=0
   WORK_DIR="$work_dir" AGENTSIGNORE="$tmp_ignore" python3 "${SCRIPT_DIR}/fd_helper.py" || status=$?
@@ -101,12 +101,12 @@ generate_compose_override() {
     fi
   done <<< "$mounts"
 
-  # Mount .opencode_start.sh read-only and run it instead of opencode
+  # Mount .agents_start.sh read-only and run it instead of opencode
   local start_mount=""
   local start_command=""
-  if [[ -f "$work_dir/.opencode_start.sh" ]]; then
-    start_mount="      - \${CONTEXT}/.opencode_start.sh:/workspace/.opencode_start.sh:ro"$'\n'
-    start_command="    command: bash /workspace/.opencode_start.sh"$'\n'
+  if [[ -f "$work_dir/.agents_start.sh" ]]; then
+    start_mount="      - \${CONTEXT}/.agents_start.sh:/workspace/.agents_start.sh:ro"$'\n'
+    start_command="    command: bash /workspace/.agents_start.sh"$'\n'
   fi
 
   # Always include config mounts
@@ -123,11 +123,11 @@ EOF
   echo "${override_file}"
 }
 
-# Return 0 if .opencode_mounts.yaml would be exposed inside the container.
+# Return 0 if .agents_mounts.yaml would be exposed inside the container.
 # It is exposed when the whole workdir (.) or the file itself is mounted.
 is_exposed() {
   local mounts=$1
-  grep -qxF "." <<< "$mounts" || grep -qxF ".opencode_mounts.yaml" <<< "$mounts"
+  grep -qxF "." <<< "$mounts" || grep -qxF ".agents_mounts.yaml" <<< "$mounts"
 }
 
 # Generate compose override to use a specific image instead of building
@@ -195,18 +195,18 @@ OVERRIDE_FILE=$(generate_compose_override "$WORKING_DIR" "$MOUNTS")
 # Compose files: base + optional override
 COMPOSE_FILES=("-f" "$RUN_DIR/compose.yml" "-f" "$OVERRIDE_FILE")
 
-# Add per-project extra mounts if .opencode_mounts.yaml exists
-MOUNTS_FILE="$WORKING_DIR/.opencode_mounts.yaml"
+# Add per-project extra mounts if .agents_mounts.yaml exists
+MOUNTS_FILE="$WORKING_DIR/.agents_mounts.yaml"
 if [[ -f "$MOUNTS_FILE" ]]; then
   if is_exposed "$MOUNTS"; then
     if [[ $RISKY -eq 0 ]]; then
-      echo "Error: .opencode_mounts.yaml is not ignored by .agentsignore." >&2
+      echo "Error: .agents_mounts.yaml is not ignored by .agentsignore." >&2
       echo "It defines container mounts and, if visible inside the container," >&2
       echo "can be trivially modified to escape the container." >&2
       echo "Add it to .agentsignore or pass --risky to proceed." >&2
       exit 1
     fi
-    echo "Warning: .opencode_mounts.yaml is not in .agentsignore (--risky given)." >&2
+    echo "Warning: .agents_mounts.yaml is not in .agentsignore (--risky given)." >&2
   fi
   COMPOSE_FILES+=("-f" "$MOUNTS_FILE")
 fi
@@ -229,4 +229,7 @@ else
 fi
 
 rm -f "$OVERRIDE_FILE"
-[[ -n "$IMAGE_OVERRIDE" ]] && rm -f "$IMAGE_OVERRIDE"
+if [[ -n "$IMAGE_OVERRIDE" ]]; then
+  rm -f "$IMAGE_OVERRIDE"
+fi
+exit 0
