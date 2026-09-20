@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 work_dir = Path(os.environ["WORK_DIR"]).resolve()
-llmignore = Path(os.environ["CLAUDEIGNORE"]).resolve()
+agentsignore = Path(os.environ["AGENTSIGNORE"]).resolve()
 
 
 def run_fd(*extra_args):
@@ -63,8 +63,8 @@ def run_fd(*extra_args):
     return paths
 
 
-# Files visible after applying .llmignore.
-included_files = run_fd("--ignore-file", str(llmignore))
+# Files visible after applying .agentsignore.
+included_files = run_fd("--ignore-file", str(agentsignore))
 
 # Every file physically present under work_dir.
 all_files = run_fd()

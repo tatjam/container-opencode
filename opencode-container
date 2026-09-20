@@ -28,7 +28,7 @@ Options:
   --risky           Allow launching when .opencode_mounts.yaml is not ignored
 
 Files:
-  .llmignore  Patterns of files/directories to exclude from the container
+  .agentsignore  Patterns of files/directories to exclude from the container
                  (format similar to .gitignore)
   .opencode_mounts.yaml  Optional compose override for extra volume mounts
   .opencode_start.sh  Optional script run in the container instead of opencode
@@ -47,10 +47,10 @@ Checkpointing:
 EOF
 }
 
-# Generate volume mounts from .llmignore, computing minimal spanning set
+# Generate volume mounts from .agentsignore, computing minimal spanning set
 generate_volume_mounts() {
   local work_dir=$1
-  local llmignore="$work_dir/.llmignore"
+  local agentsignore="$work_dir/.agentsignore"
 
   if ! command -v fdfind >/dev/null 2>&1; then
     echo "Error: fdfind is required" >&2
@@ -62,19 +62,19 @@ generate_volume_mounts() {
     return 1
   fi
 
-  if [[ ! -f "$llmignore" ]]; then
-    echo "Error: .llmignore not found: $llmignore" >&2
+  if [[ ! -f "$agentsignore" ]]; then
+    echo "Error: .agentsignore not found: $agentsignore" >&2
     return 1
   fi
 
   # .opencode_start.sh is never part of the workspace mounts; it is mounted
   # separately and read-only.
   local tmp_ignore="$(mktemp)"
-  cat "$llmignore" > "$tmp_ignore"
+  cat "$agentsignore" > "$tmp_ignore"
   echo ".opencode_start.sh" >> "$tmp_ignore"
 
   local status=0
-  WORK_DIR="$work_dir" CLAUDEIGNORE="$tmp_ignore" python3 "${SCRIPT_DIR}/fd_helper.py" || status=$?
+  WORK_DIR="$work_dir" AGENTSIGNORE="$tmp_ignore" python3 "${SCRIPT_DIR}/fd_helper.py" || status=$?
   rm -f "$tmp_ignore"
   return $status
 }
@@ -83,13 +83,13 @@ generate_volume_mounts() {
 generate_compose_override() {
   local work_dir=$1
   local mounts=$2
-  local llmignore="$work_dir/.llmignore"
+  local agentsignore="$work_dir/.agentsignore"
 
   local override_file="$(mktemp -d)/compose.override.yml"
 
-  # Fail if .llmignore doesn't exist
-  if [[ ! -f "$llmignore" ]]; then
-    echo "Error: .llmignore not found: $llmignore" >&2
+  # Fail if .agentsignore doesn't exist
+  if [[ ! -f "$agentsignore" ]]; then
+    echo "Error: .agentsignore not found: $agentsignore" >&2
     return 1
   fi
 
@@ -188,7 +188,7 @@ cd "$WORKING_DIR" || exit 1
 
 mkdir -p .opencode
 
-# Generate compose override with selective mounts if .llmignore exists
+# Generate compose override with selective mounts if .agentsignore exists
 MOUNTS=$(generate_volume_mounts "$WORKING_DIR")
 OVERRIDE_FILE=$(generate_compose_override "$WORKING_DIR" "$MOUNTS")
 
@@ -200,13 +200,13 @@ MOUNTS_FILE="$WORKING_DIR/.opencode_mounts.yaml"
 if [[ -f "$MOUNTS_FILE" ]]; then
   if is_exposed "$MOUNTS"; then
     if [[ $RISKY -eq 0 ]]; then
-      echo "Error: .opencode_mounts.yaml is not ignored by .llmignore." >&2
+      echo "Error: .opencode_mounts.yaml is not ignored by .agentsignore." >&2
       echo "It defines container mounts and, if visible inside the container," >&2
       echo "can be trivially modified to escape the container." >&2
-      echo "Add it to .llmignore or pass --risky to proceed." >&2
+      echo "Add it to .agentsignore or pass --risky to proceed." >&2
       exit 1
     fi
-    echo "Warning: .opencode_mounts.yaml is not in .llmignore (--risky given)." >&2
+    echo "Warning: .opencode_mounts.yaml is not in .agentsignore (--risky given)." >&2
   fi
   COMPOSE_FILES+=("-f" "$MOUNTS_FILE")
 fi
