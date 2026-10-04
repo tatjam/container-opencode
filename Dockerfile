@@ -33,9 +33,14 @@ ARG USERNAME=node
 # Set `DEVCONTAINER` environment variable to help with orientation
 ENV DEVCONTAINER=true
 
-# Create workspace and config directories and set permissions
-RUN mkdir -p /workspace /home/node/.opencode && \
-  chown -R node:node /workspace /home/node/.opencode
+# Fix messy permissions
+RUN mkdir -p /workspace /home/node/.opencode \
+  /home/node/.config/opencode \
+  /home/node/.local/share/opencode \
+  /home/node/.local/state/opencode && \
+  chown -R node:node /workspace /home/node/.opencode /home/node/.config /home/node/.local
+
+RUN chmod 1777 /tmp /var/tmp
 
 WORKDIR /workspace
 
