@@ -26,6 +26,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   curl \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+
+ENV UV_LINK_MODE=copy \
+    UV_TOOL_DIR=/usr/local/share/uv-tools \
+    UV_TOOL_BIN_DIR=/usr/local/bin
+
 # Ensure default node user has access to /usr/local/share
 RUN mkdir -p /usr/local/share/npm-global && chown -R node:node /usr/local/share/npm-global
 
@@ -41,6 +48,8 @@ RUN mkdir -p /workspace /home/node/.opencode \
   /home/node/.local/state/opencode && \
   chown -R node:node /workspace /home/node/.opencode /home/node/.config /home/node/.local
 
+RUN mkdir -p /home/node/.cache/uv && chown -R node:node /home/node/.cache
+
 RUN chmod 1777 /tmp /var/tmp
 
 WORKDIR /workspace
@@ -55,7 +64,7 @@ RUN npm install -g \
   vscode-langservers-extracted \
   yaml-language-server
 
-RUN pip3 install --no-cache-dir pyright --break-system-packages || pip3 install --no-cache-dir pyright
+RUN uv tool install pyright
 
 # Install Go
 RUN GO_VERSION=$(curl -s https://go.dev/VERSION?m=text | head -n 1) && \
