@@ -26,6 +26,8 @@ Options:
   -h, --help        Show this help message and exit
   -i, --image NAME  Use the given container image instead of building one
   --risky           Allow launching when .agents_mounts.yaml is not ignored
+  --                Pass everything after -- as arguments to opencode, e.g.
+                    -- --session <id>, -- --continue or -- --resume
 
 Files:
   .agentsignore  Patterns of files/directories to exclude from the container
@@ -79,12 +81,22 @@ generate_volume_mounts() {
   return $status
 }
 
+# Quote a string for use inside a YAML flow sequence
+yaml_quote() {
+  local s=$1
+  s=${s//\\/\\\\}
+  s=${s//\"/\\\"}
+  printf '"%s"' "$s"
+}
+
 # Generate compose override file with selective volume mounts
 generate_compose_override() {
   local work_dir=$1
   local mounts=$2
-  local agentsignore="$work_dir/.agentsignore"
+  shift 2
+  local opencode_args=("$@")
 
+  local agentsignore="$work_dir/.agentsignore"
   local override_file="$(mktemp -d)/compose.override.yml"
 
   # Fail if .agentsignore doesn't exist
@@ -101,10 +113,17 @@ generate_compose_override() {
     fi
   done <<< "$mounts"
 
-  # Mount .agents_start.sh read-only and run it instead of opencode
+  # Explicit opencode arguments win over .agents_start.sh
   local start_mount=""
   local start_command=""
-  if [[ -f "$work_dir/.agents_start.sh" ]]; then
+  if (( ${#opencode_args[@]} )); then
+    local items=""
+    local arg
+    for arg in "${opencode_args[@]}"; do
+      items+="$(yaml_quote "$arg"), "
+    done
+    start_command="    command: [opencode, ${items%, }]"$'\n'
+  elif [[ -f "$work_dir/.agents_start.sh" ]]; then
     start_mount="      - \${CONTEXT}/.agents_start.sh:/workspace/.agents_start.sh:ro"$'\n'
     start_command="    command: bash /workspace/.agents_start.sh"$'\n'
   fi
@@ -144,6 +163,7 @@ EOF
 
 # Parse arguments
 POSITIONAL_ARGS=()
+OPENCODE_ARGS=()
 while [[ $# -gt 0 ]]; do
   case $1 in
     -b|--build)
@@ -157,6 +177,11 @@ while [[ $# -gt 0 ]]; do
     --risky)
       RISKY=1
       shift
+      ;;
+    --)
+      shift
+      OPENCODE_ARGS=("$@")
+      break
       ;;
     -i|--image)
       if [[ $# -lt 2 ]]; then
@@ -190,7 +215,7 @@ mkdir -p .opencode
 
 # Generate compose override with selective mounts if .agentsignore exists
 MOUNTS=$(generate_volume_mounts "$WORKING_DIR")
-OVERRIDE_FILE=$(generate_compose_override "$WORKING_DIR" "$MOUNTS")
+OVERRIDE_FILE=$(generate_compose_override "$WORKING_DIR" "$MOUNTS" ${OPENCODE_ARGS[@]+"${OPENCODE_ARGS[@]}"})
 
 # Compose files: base + optional override
 COMPOSE_FILES=("-f" "$RUN_DIR/compose.yml" "-f" "$OVERRIDE_FILE")
