@@ -6,6 +6,8 @@ from pathlib import Path
 work_dir = Path(os.environ["WORK_DIR"]).resolve()
 agentsignore = Path(os.environ["AGENTSIGNORE"]).resolve()
 
+os.chdir(work_dir)
+
 
 def run_fd(*extra_args):
     """
@@ -26,7 +28,6 @@ def run_fd(*extra_args):
         "--type", "l",
         *extra_args,
         ".",
-        str(work_dir),
     ]
 
     try:
