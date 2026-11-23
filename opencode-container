@@ -22,7 +22,8 @@ Usage: $(basename "$0") [OPTIONS] <directory>
 Launch a containerized Open Code workspace in the given directory.
 
 Options:
-  -b, --build       Force a rebuild of the container image
+  -b, --build       Rebuild the image before launching (unchanged layers
+                    are reused from cache)
   -h, --help        Show this help message and exit
   -i, --image NAME  Use the given container image instead of building one
   --risky           Allow launching when .agents_mounts.yaml is not ignored
@@ -122,7 +123,7 @@ generate_compose_override() {
     for arg in "${opencode_args[@]}"; do
       items+="$(yaml_quote "$arg"), "
     done
-    start_command="    command: [opencode, ${items%, }]"$'\n'
+    start_command="    command: [opencode, --auto, ${items%, }]"$'\n'
   elif [[ -f "$work_dir/.agents_start.sh" ]]; then
     start_mount="      - \${CONTEXT}/.agents_start.sh:/workspace/.agents_start.sh:ro"$'\n'
     start_command="    command: bash /workspace/.agents_start.sh"$'\n'
@@ -136,6 +137,7 @@ services:
       - ${OPENCODE_CONFIG_DIR:-~}/.config/opencode:/home/node/.config/opencode
       - ${OPENCODE_CONFIG_DIR:-~}/.opencode/share:/home/node/.local/share/opencode
       - ${OPENCODE_CONFIG_DIR:-~}/.opencode/state:/home/node/.local/state/opencode
+      - ${AVEN_DB_DIR:-~/.local/state/aven/}:/home/node/.local/state/aven/
 ${mounts_yaml}${start_mount}${start_command}
 EOF
 
@@ -248,10 +250,10 @@ if [[ -n "$IMAGE" ]]; then
 fi
 
 if [[ $BUILD -eq 1 ]]; then
-  CONTEXT="$WORKING_DIR" OPENCODE_CONTAINER_DIR="$RUN_DIR" OPENCODE_CONFIG_DIR="${OPENCODE_CONFIG_DIR:-$HOME}" podman compose "${COMPOSE_FILES[@]}" --in-pod false run --rm --build opencode-auth-workspace
-else
-  CONTEXT="$WORKING_DIR" OPENCODE_CONTAINER_DIR="$RUN_DIR" OPENCODE_CONFIG_DIR="${OPENCODE_CONFIG_DIR:-$HOME}" podman compose "${COMPOSE_FILES[@]}" --in-pod false run --rm opencode-auth-workspace
+  CONTEXT="$WORKING_DIR" OPENCODE_CONTAINER_DIR="$RUN_DIR" OPENCODE_CONFIG_DIR="${OPENCODE_CONFIG_DIR:-$HOME}" podman compose "${COMPOSE_FILES[@]}" build opencode-auth-workspace || exit 1
 fi
+
+CONTEXT="$WORKING_DIR" OPENCODE_CONTAINER_DIR="$RUN_DIR" OPENCODE_CONFIG_DIR="${OPENCODE_CONFIG_DIR:-$HOME}" podman compose "${COMPOSE_FILES[@]}" --in-pod false run --rm opencode-auth-workspace
 
 rm -f "$OVERRIDE_FILE"
 if [[ -n "$IMAGE_OVERRIDE" ]]; then
